@@ -112,14 +112,32 @@ export default function Home() {
 
         // Handle different response formats
         if (typeof data.response === 'string') {
+          // Direct string response from agent
           responseText = data.response
         } else if (data.response && typeof data.response === 'object') {
+          // Try to extract from structured response
           responseText =
             data.response.agent_response ||
             data.response.message ||
             data.response.response ||
+            data.response.answer ||
+            data.response.result ||
+            data.response.text ||
             JSON.stringify(data.response)
           escalationSuggested = data.response.escalation_suggested || false
+        }
+
+        // Fallback to raw_response if no responseText
+        if (!responseText && data.raw_response) {
+          responseText =
+            typeof data.raw_response === 'string'
+              ? data.raw_response
+              : JSON.stringify(data.raw_response)
+        }
+
+        // Final fallback
+        if (!responseText) {
+          responseText = 'I received your message but could not generate a response.'
         }
 
         const agentMessage: Message = {
