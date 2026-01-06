@@ -110,44 +110,59 @@ export default function Home() {
         let responseText = ''
         let escalationSuggested = false
 
-        console.log('API Response:', data)
-        console.log('Response type:', typeof data.response)
-        console.log('Response value:', data.response)
-
-        // Primary: Handle direct string response
-        if (typeof data.response === 'string' && data.response.trim().length > 0) {
-          responseText = data.response
-          console.log('Using direct string response')
+        // Helper function to extract meaningful text
+        const extractMessage = (obj: any): string => {
+          if (typeof obj === 'string') {
+            return obj
+          }
+          if (typeof obj === 'object' && obj !== null) {
+            // Try common response field names
+            const fields = [
+              'agent_response',
+              'message',
+              'response',
+              'answer',
+              'result',
+              'text',
+              'content',
+              'data',
+              'reply',
+              'output',
+            ]
+            for (const field of fields) {
+              if (obj[field] && typeof obj[field] === 'string' && obj[field].trim().length > 0) {
+                return obj[field]
+              }
+            }
+          }
+          return ''
         }
-        // Secondary: Handle structured response object
-        else if (data.response && typeof data.response === 'object') {
-          responseText =
-            data.response.agent_response ||
-            data.response.message ||
-            data.response.response ||
-            data.response.answer ||
-            data.response.result ||
-            data.response.text ||
-            ''
+
+        // Strategy 1: Extract from data.response (primary source)
+        responseText = extractMessage(data.response)
+
+        // Check for escalation flag
+        if (typeof data.response === 'object' && data.response !== null) {
           escalationSuggested = data.response.escalation_suggested || false
-          console.log('Using structured response:', responseText)
         }
 
-        // Tertiary: Fallback to raw_response
+        // Strategy 2: If response is empty, try raw_response
         if (!responseText || responseText.trim().length === 0) {
-          if (typeof data.raw_response === 'string' && data.raw_response.trim().length > 0) {
-            responseText = data.raw_response
-            console.log('Using raw_response fallback')
-          } else if (data.raw_response && typeof data.raw_response === 'object') {
-            responseText = JSON.stringify(data.raw_response)
-            console.log('Using stringified raw_response')
+          responseText = extractMessage(data.raw_response)
+        }
+
+        // Strategy 3: If still empty, stringify the entire response
+        if (!responseText || responseText.trim().length === 0) {
+          if (data.response) {
+            responseText = typeof data.response === 'string' ? data.response : JSON.stringify(data.response)
+          } else if (data.raw_response) {
+            responseText = typeof data.raw_response === 'string' ? data.raw_response : JSON.stringify(data.raw_response)
           }
         }
 
-        // Final fallback
+        // Strategy 4: Final fallback
         if (!responseText || responseText.trim().length === 0) {
           responseText = 'I received your message but could not generate a response.'
-          console.log('Using final fallback')
         }
 
         const agentMessage: Message = {
@@ -158,7 +173,6 @@ export default function Home() {
           escalationSuggested,
         }
 
-        console.log('Final message to display:', agentMessage)
         setMessages((prev) => [...prev, agentMessage])
       } else {
         const errorMessage: Message = {
