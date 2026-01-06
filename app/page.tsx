@@ -112,7 +112,7 @@ export default function Home() {
 
         // Helper function to extract meaningful text
         const extractMessage = (obj: any): string => {
-          if (typeof obj === 'string') {
+          if (typeof obj === 'string' && obj.trim().length > 0) {
             return obj
           }
           if (typeof obj === 'object' && obj !== null) {
@@ -138,29 +138,40 @@ export default function Home() {
           return ''
         }
 
-        // Strategy 1: Extract from data.response (primary source)
-        responseText = extractMessage(data.response)
+        // Strategy 1: Try raw_response first (most reliable)
+        if (data.raw_response) {
+          responseText = extractMessage(data.raw_response)
+        }
+
+        // Strategy 2: If raw_response is empty, extract from data.response
+        if (!responseText || responseText.trim().length === 0) {
+          responseText = extractMessage(data.response)
+        }
 
         // Check for escalation flag
         if (typeof data.response === 'object' && data.response !== null) {
           escalationSuggested = data.response.escalation_suggested || false
         }
 
-        // Strategy 2: If response is empty, try raw_response
+        // Strategy 3: If still empty, stringify raw_response
         if (!responseText || responseText.trim().length === 0) {
-          responseText = extractMessage(data.raw_response)
-        }
-
-        // Strategy 3: If still empty, stringify the entire response
-        if (!responseText || responseText.trim().length === 0) {
-          if (data.response) {
-            responseText = typeof data.response === 'string' ? data.response : JSON.stringify(data.response)
-          } else if (data.raw_response) {
-            responseText = typeof data.raw_response === 'string' ? data.raw_response : JSON.stringify(data.raw_response)
+          if (data.raw_response) {
+            responseText = typeof data.raw_response === 'string'
+              ? data.raw_response
+              : JSON.stringify(data.raw_response)
           }
         }
 
-        // Strategy 4: Final fallback
+        // Strategy 4: Stringify response as last resort
+        if (!responseText || responseText.trim().length === 0) {
+          if (data.response) {
+            responseText = typeof data.response === 'string'
+              ? data.response
+              : JSON.stringify(data.response)
+          }
+        }
+
+        // Strategy 5: Final fallback
         if (!responseText || responseText.trim().length === 0) {
           responseText = 'I received your message but could not generate a response.'
         }
