@@ -110,42 +110,41 @@ export default function Home() {
         let responseText = ''
         let escalationSuggested = false
 
-        // Helper function to extract meaningful text
-        const extractMessage = (obj: any): string => {
-          if (typeof obj === 'string' && obj.trim().length > 0) {
-            return obj
-          }
-          if (typeof obj === 'object' && obj !== null) {
-            // Try common response field names
-            const fields = [
-              'agent_response',
-              'message',
-              'response',
-              'answer',
-              'result',
-              'text',
-              'content',
-              'data',
-              'reply',
-              'output',
-            ]
-            for (const field of fields) {
-              if (obj[field] && typeof obj[field] === 'string' && obj[field].trim().length > 0) {
-                return obj[field]
-              }
+        // Direct extraction - prioritize raw_response since it contains the actual agent text
+        // The API returns: { success: true, response: {}, raw_response: "actual text here", ... }
+
+        // First, try raw_response directly as a string
+        if (typeof data.raw_response === 'string' && data.raw_response.trim().length > 0) {
+          responseText = data.raw_response
+        }
+        // If raw_response is an object, stringify it
+        else if (typeof data.raw_response === 'object' && data.raw_response !== null && Object.keys(data.raw_response).length > 0) {
+          responseText = JSON.stringify(data.raw_response)
+        }
+        // Try data.response as fallback
+        else if (typeof data.response === 'string' && data.response.trim().length > 0) {
+          responseText = data.response
+        }
+        // Try to extract from response object
+        else if (typeof data.response === 'object' && data.response !== null) {
+          const fields = [
+            'agent_response',
+            'message',
+            'response',
+            'answer',
+            'result',
+            'text',
+            'content',
+            'data',
+            'reply',
+            'output',
+          ]
+          for (const field of fields) {
+            if (data.response[field] && typeof data.response[field] === 'string' && data.response[field].trim().length > 0) {
+              responseText = data.response[field]
+              break
             }
           }
-          return ''
-        }
-
-        // Strategy 1: Try raw_response first (most reliable)
-        if (data.raw_response) {
-          responseText = extractMessage(data.raw_response)
-        }
-
-        // Strategy 2: If raw_response is empty, extract from data.response
-        if (!responseText || responseText.trim().length === 0) {
-          responseText = extractMessage(data.response)
         }
 
         // Check for escalation flag
@@ -153,25 +152,7 @@ export default function Home() {
           escalationSuggested = data.response.escalation_suggested || false
         }
 
-        // Strategy 3: If still empty, stringify raw_response
-        if (!responseText || responseText.trim().length === 0) {
-          if (data.raw_response) {
-            responseText = typeof data.raw_response === 'string'
-              ? data.raw_response
-              : JSON.stringify(data.raw_response)
-          }
-        }
-
-        // Strategy 4: Stringify response as last resort
-        if (!responseText || responseText.trim().length === 0) {
-          if (data.response) {
-            responseText = typeof data.response === 'string'
-              ? data.response
-              : JSON.stringify(data.response)
-          }
-        }
-
-        // Strategy 5: Final fallback
+        // Last resort fallback
         if (!responseText || responseText.trim().length === 0) {
           responseText = 'I received your message but could not generate a response.'
         }
