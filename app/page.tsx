@@ -110,12 +110,17 @@ export default function Home() {
         let responseText = ''
         let escalationSuggested = false
 
-        // Handle different response formats
-        if (typeof data.response === 'string') {
-          // Direct string response from agent
+        console.log('API Response:', data)
+        console.log('Response type:', typeof data.response)
+        console.log('Response value:', data.response)
+
+        // Primary: Handle direct string response
+        if (typeof data.response === 'string' && data.response.trim().length > 0) {
           responseText = data.response
-        } else if (data.response && typeof data.response === 'object') {
-          // Try to extract from structured response
+          console.log('Using direct string response')
+        }
+        // Secondary: Handle structured response object
+        else if (data.response && typeof data.response === 'object') {
           responseText =
             data.response.agent_response ||
             data.response.message ||
@@ -123,31 +128,37 @@ export default function Home() {
             data.response.answer ||
             data.response.result ||
             data.response.text ||
-            JSON.stringify(data.response)
+            ''
           escalationSuggested = data.response.escalation_suggested || false
+          console.log('Using structured response:', responseText)
         }
 
-        // Fallback to raw_response if no responseText
-        if (!responseText && data.raw_response) {
-          responseText =
-            typeof data.raw_response === 'string'
-              ? data.raw_response
-              : JSON.stringify(data.raw_response)
+        // Tertiary: Fallback to raw_response
+        if (!responseText || responseText.trim().length === 0) {
+          if (typeof data.raw_response === 'string' && data.raw_response.trim().length > 0) {
+            responseText = data.raw_response
+            console.log('Using raw_response fallback')
+          } else if (data.raw_response && typeof data.raw_response === 'object') {
+            responseText = JSON.stringify(data.raw_response)
+            console.log('Using stringified raw_response')
+          }
         }
 
         // Final fallback
-        if (!responseText) {
+        if (!responseText || responseText.trim().length === 0) {
           responseText = 'I received your message but could not generate a response.'
+          console.log('Using final fallback')
         }
 
         const agentMessage: Message = {
           id: `msg-${Date.now()}-agent`,
           type: 'agent',
-          content: responseText,
+          content: responseText.trim(),
           timestamp: new Date(),
           escalationSuggested,
         }
 
+        console.log('Final message to display:', agentMessage)
         setMessages((prev) => [...prev, agentMessage])
       } else {
         const errorMessage: Message = {
